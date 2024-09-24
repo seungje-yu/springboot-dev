@@ -1,4 +1,4 @@
-name: Docker Image CI
+name: Deploy to Elastic Beanstalk using ECR
 
 on:
   push:
@@ -15,72 +15,57 @@ jobs:
     - name: Checkout source code
       uses: actions/checkout@v3  # 소스 코드를 GitHub Actions에 체크아웃
 
-    - name: Set up Temurin JDK 17
-      uses: actions/setup-java@v3  # Temurin OpenJDK 설정
+    - name: Login to Amazon ECR
+      id: login-ecr
+      uses: aws-actions/amazon-ecr-login@v1  # ECR 로그인
+
+    - name: Build, tag, and push image to Amazon ECR
+      id: build-image
+      env:
+        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}  # ECR 레지스트리 URL
+        ECR_REPOSITORY: devdocker  # ECR 레포지토리 이름
+        IMAGE_TAG: ${{ github.sha }}  # GitHub SHA 값으로 태그 설정
+      run: |
+        docker buildx build --platform=linux/amd64 -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+        docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+        echo "::set-output name=image::$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
+
+    - name: Generate Dockerrun.aws.json
+      run: |
+        echo '{
+          "AWSEBDockerrunVersion": 1,
+          "Image": {
+            "Name": "${{ steps.build-image.outputs.image }}",
+            "Update": "true"
+          },
+          "Ports": [
+            {
+              "ContainerPort": "8080"
+            }
+          ]
+        }' > Dockerrun.aws.json
+
+    - name: Get current time
+      uses: 1466587594/get-current-time@v2
+      id: current-time
       with:
-        distribution: 'temurin'  # Temurin OpenJDK 사용
-        java-version: '17'  # Java 17 버전 사용
+        format: YYYYMMDD_HH-mm-ss
+        utcOffset: "+09:00"  # 한국 시간대 (UTC+09:00)
 
-    - name: Set JAVA_HOME for Gradle
-      run: echo "JAVA_HOME=${{ steps.setup-java.outputs.path }}" >> $GITHUB_ENV  # Gradle이 Java 17을 사용하도록 JAVA_HOME 설정
-
-    - name: Give execute permission to gradlew
-      run: chmod +x ./gradlew  # gradlew 파일에 실행 권한 부여
-
-    - name: Create application.yml from GitHub Secrets
+    - name: Generate deployment package
       run: |
-        echo "${{ secrets.APPLICATION_YML }}" > src/main/resources/application.yml  # GitHub Secrets에서 application.yml 생성
+        mkdir -p deploy/.platform/nginx/conf.d
+        cp Dockerrun.aws.json deploy/Dockerrun.aws.json
+        cp .platform/nginx/conf.d/proxy.conf deploy/.platform/nginx/conf.d/proxy.conf
+        cd deploy && zip -r deploy.zip .
 
-    - name: Build with Gradle (skip tests)
-      run: ./gradlew clean build -x test  # 테스트를 제외하고 빌드 실행
-
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v2  # Docker Buildx 설정
-
-    - name: Log in to Amazon ECR
-      run: |
-        aws ecr get-login-password --region ${{ secrets.AWS_REGION }} | docker login --username AWS --password-stdin ${{ secrets.ECR_URL }}
-      env:
-        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}  # AWS 자격증명 설정
-        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}  # AWS 자격증명 설정
-        AWS_REGION: ${{ secrets.AWS_REGION }}  # AWS 리전 설정
-
-    - name: Build, tag, and push Docker image to devdocker ECR
-      env:
-        AWS_REGION: ${{ secrets.AWS_REGION }}
-        IMAGE_TAG: ${{ github.sha }}  # 커밋 SHA 값을 Docker 이미지 태그로 사용
-      run: |
-        docker build -t ${{ secrets.ECR_URL }}/devdocker:${{ github.sha }} .  # Docker 이미지를 devdocker 레지스트리에 빌드
-        docker push ${{ secrets.ECR_URL }}/devdocker:${{ github.sha }}  # devdocker ECR 레지스트리에 푸시
-
-    - name: Create new Elastic Beanstalk application version (Docker)
-      run: |
-        aws elasticbeanstalk create-application-version \
-          --application-name $EB_APP_NAME \
-          --version-label $IMAGE_TAG \
-          --source-bundle S3Bucket=$ECR_BUCKET,S3Key=${{ secrets.ECR_URL }}/devdocker:${{ github.sha }} \
-          --process \
-          --region $AWS_REGION
-      env:
-        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        AWS_REGION: ${{ secrets.AWS_REGION }}
-        EB_APP_NAME: ${{ secrets.EB_APP_NAME }}
-        IMAGE_TAG: ${{ github.sha }}
-        ECR_URL: ${{ secrets.ECR_URL }}
-        ECR_BUCKET: ${{ secrets.ECR_BUCKET }}
-
-    - name: Deploy to Elastic Beanstalk
-      run: |
-        aws elasticbeanstalk update-environment \
-          --application-name $EB_APP_NAME \
-          --environment-name $EB_ENV_NAME \
-          --version-label $IMAGE_TAG \
-          --region $AWS_REGION
-      env:
-        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        AWS_REGION: ${{ secrets.AWS_REGION }}
-        EB_APP_NAME: ${{ secrets.EB_APP_NAME }}
-        EB_ENV_NAME: ${{ secrets.EB_ENV_NAME }}
-        IMAGE_TAG: ${{ github.sha }}
+    - name: Beanstalk Deploy
+      uses: einaregilsson/beanstalk-deploy@v14
+      with:
+        aws_access_key: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws_secret_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        application_name: [Elastic Beanstalk app 이름]  # Elastic Beanstalk 애플리케이션 이름 입력
+        environment_name: [Elastic Beanstalk Env 이름]  # Elastic Beanstalk 환경 이름 입력
+        version_label: docker-deploy-${{steps.current-time.outputs.formattedTime}}
+        region: ap-northeast-2  # 한국 리전
+        deployment_package: deploy/deploy.zip
