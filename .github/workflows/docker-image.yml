@@ -58,13 +58,14 @@ jobs:
         aws elasticbeanstalk create-application-version \
           --application-name $EB_APP_NAME \
           --version-label $IMAGE_TAG \
-          --source-build-information '{"Image":{"RepositoryName":"'$ECR_URL'","ImageTag":"'$IMAGE_TAG'"}}' \
-          --region $AWS_REGION
+          --region $AWS_REGION \
+          --process \
+          --image-source ${{ secrets.ECR_URL }}:${{ github.sha }}  # ECR 이미지 정보
       env:
         AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
         AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         AWS_REGION: ${{ secrets.AWS_REGION }}
-        EB_APP_NAME: ${{ secrets.EB_APP_NAME }}  # GitHub Secrets에서 Elastic Beanstalk 애플리케이션 이름 가져옴
+        EB_APP_NAME: ${{ secrets.EB_APP_NAME }}
         ECR_URL: ${{ secrets.ECR_URL }}
         IMAGE_TAG: ${{ github.sha }}
 
