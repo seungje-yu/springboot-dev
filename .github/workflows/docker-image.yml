@@ -29,7 +29,10 @@ jobs:
 
     - name: Create application.yml from GitHub Secrets
       run: |
-        echo "${{ secrets.APPLICATION_YML }}" | base64 --decode > src/main/resources/application.yml  # GitHub Secrets에서 application.yml 생성
+        echo "${{ secrets.APPLICATION_YML }}" > src/main/resources/application.yml  # GitHub Secrets에서 application.yml 생성
+
+    - name: Verify application.yml content
+      run: cat src/main/resources/application.yml  # application.yml 파일 내용 확인 (디버깅용)
 
     - name: Build with Gradle
       run: ./gradlew clean build test -Dtest.ignoreFailures=true # Gradle을 사용하여 애플리케이션 빌드
