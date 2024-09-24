@@ -1,4 +1,4 @@
 spring:
   profiles:
-    include: local, dev
-#    active: local
+#    include: local, dev
+    active: local
