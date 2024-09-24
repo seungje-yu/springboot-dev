@@ -39,7 +39,9 @@ jobs:
 
     - name: Log in to Amazon ECR
       id: ecr-login
-      uses: aws-actions/amazon-ecr-login@v2  # ECR 로그인 (GitHub Secrets를 통해 AWS 자격증명 사용)
+      uses: aws-actions/amazon-ecr-login@v2  # ECR 로그인
+      with:
+        region: ${{ secrets.AWS_REGION }}  # AWS 리전 설정
 
     - name: Build, tag, and push Docker image to Amazon ECR
       env:
