@@ -39,26 +39,26 @@ jobs:
 
     - name: Log in to Amazon ECR
       run: |
-        aws ecr get-login-password --region ${{ secrets.AWS_REGION }} | docker login --username AWS --password-stdin ${{ secrets.ECR_URL }}
+        aws ecr get-login-password --region ${{ secrets.AWS_REGION }} | docker login --username AWS --password-stdin ${{ secrets.ECR_URL }}/devdocker
       env:
         AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}  # AWS 자격증명 설정
         AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}  # AWS 자격증명 설정
         AWS_REGION: ${{ secrets.AWS_REGION }}  # AWS 리전 설정
 
-    - name: Build, tag, and push Docker image to Amazon ECR
+    - name: Build, tag, and push Docker image to devdocker ECR
       env:
         AWS_REGION: ${{ secrets.AWS_REGION }}
         IMAGE_TAG: ${{ github.sha }}  # 커밋 SHA 값을 Docker 이미지 태그로 사용
       run: |
-        docker build -t ${{ secrets.ECR_URL }}:${{ github.sha }} .  # Docker 이미지를 빌드
-        docker push ${{ secrets.ECR_URL }}:${{ github.sha }}  # Docker 이미지를 ECR에 푸시
+        docker build -t ${{ secrets.ECR_URL }}/devdocker:${{ github.sha }} .  # Docker 이미지를 devdocker 레지스트리에 빌드
+        docker push ${{ secrets.ECR_URL }}/devdocker:${{ github.sha }}  # devdocker ECR 레지스트리에 푸시
 
     - name: Create new Elastic Beanstalk application version (Docker)
       run: |
         aws elasticbeanstalk create-application-version \
           --application-name $EB_APP_NAME \
           --version-label $IMAGE_TAG \
-          --source-bundle S3Bucket=$ECR_BUCKET,S3Key=${{ secrets.ECR_URL }}:${{ github.sha }} \
+          --source-bundle S3Bucket=$ECR_BUCKET,S3Key=${{ secrets.ECR_URL }}/devdocker:${{ github.sha }} \
           --process \
           --region $AWS_REGION
       env:
