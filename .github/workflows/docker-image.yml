@@ -21,12 +21,15 @@ jobs:
         distribution: 'temurin'  # Temurin OpenJDK 사용
         java-version: '17'  # Java 17 버전 사용
 
+    - name: Give execute permission to gradlew
+      run: chmod +x ./gradlew  # gradlew 파일에 실행 권한 부여
+
     - name: Create application.yml from GitHub Secrets
       run: |
         echo "${{ secrets.APPLICATION_YML }}" > src/main/resources/application.yml  # GitHub Secrets에서 application.yml 생성
 
-    - name: Build with Gradle  # Gradle로 빌드하는 경우
-      run: ./gradlew clean build  # Gradle 빌드 (Maven을 사용하는 경우 'mvn clean package'로 변경)
+    - name: Build with Gradle
+      run: ./gradlew clean build  # Gradle을 사용하여 애플리케이션 빌드
 
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v2  # Docker Buildx 설정
