@@ -20,17 +20,21 @@ jobs:
       with:
         distribution: 'temurin'  # Temurin OpenJDK 사용
         java-version: '17'  # Java 17 버전 사용
-
+        
+    - name: Create application.yml from GitHub Secrets
+      run: |
+        echo "${{ secrets.APPLICATION_YML }}" > src/main/resources/application.yml  # GitHub Secrets에서 application.yml 생성
+        
     - name: Set JAVA_HOME for Gradle
       run: echo "JAVA_HOME=${{ steps.setup-java.outputs.path }}" >> $GITHUB_ENV  # Gradle이 Java 17을 사용하도록 JAVA_HOME 설정
 
     - name: Give execute permission to gradlew
       run: chmod +x ./gradlew  # gradlew 파일에 실행 권한 부여
-
-    - name: Create application.yml from GitHub Secrets
-      run: |
-        echo "${{ secrets.APPLICATION_YML }}" > src/main/resources/application.yml  # GitHub Secrets에서 application.yml 생성
-
+      
+   # Gradle Build (테스트 생략)
+    - name: Build with Gradle
+      run: ./gradlew clean build -x test
+    
     - name: Verify application.yml content
       run: cat src/main/resources/application.yml  # application.yml 파일 내용 확인 (디버깅용)
 
