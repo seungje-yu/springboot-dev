@@ -64,6 +64,7 @@ jobs:
         AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
         AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         AWS_REGION: ${{ secrets.AWS_REGION }}
+        EB_APP_NAME: ${{ secrets.EB_APP_NAME }}  # GitHub Secrets에서 Elastic Beanstalk 애플리케이션 이름 가져옴
         ECR_URL: ${{ secrets.ECR_URL }}
         IMAGE_TAG: ${{ github.sha }}
 
