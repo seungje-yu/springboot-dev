@@ -53,13 +53,31 @@ jobs:
         docker build -t ${{ secrets.ECR_URL }}:${{ github.sha }} .  # Docker 이미지를 빌드
         docker push ${{ secrets.ECR_URL }}:${{ github.sha }}  # Docker 이미지를 ECR에 푸시
 
+    - name: Create new Elastic Beanstalk application version (Docker)
+      run: |
+        aws elasticbeanstalk create-application-version \
+          --application-name $EB_APP_NAME \
+          --version-label $IMAGE_TAG \
+          --source-build-information '{"Image":{"RepositoryName":"'$ECR_URL'","ImageTag":"'$IMAGE_TAG'"}}' \
+          --region $AWS_REGION
+      env:
+        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        AWS_REGION: ${{ secrets.AWS_REGION }}
+        ECR_URL: ${{ secrets.ECR_URL }}
+        IMAGE_TAG: ${{ github.sha }}
+
     - name: Deploy to Elastic Beanstalk
+      run: |
+        aws elasticbeanstalk update-environment \
+          --application-name $EB_APP_NAME \
+          --environment-name $EB_ENV_NAME \
+          --version-label $IMAGE_TAG \
+          --region $AWS_REGION
       env:
         AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
         AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         AWS_REGION: ${{ secrets.AWS_REGION }}
         EB_APP_NAME: ${{ secrets.EB_APP_NAME }}
         EB_ENV_NAME: ${{ secrets.EB_ENV_NAME }}
-        IMAGE_TAG: ${{ github.sha }}  # 동일한 커밋 SHA 값을 사용하여 배포
-      run: |
-        aws elasticbeanstalk update-environment --application-name $EB_APP_NAME --environment-name $EB_ENV_NAME --version-label $IMAGE_TAG --region $AWS_REGION
+        IMAGE_TAG: ${{ github.sha }}
