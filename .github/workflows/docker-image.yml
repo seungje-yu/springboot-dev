@@ -53,14 +53,30 @@ jobs:
         docker build -t ${{ secrets.ECR_URL }}:${{ github.sha }} .  # Docker 이미지를 빌드
         docker push ${{ secrets.ECR_URL }}:${{ github.sha }}  # Docker 이미지를 ECR에 푸시
 
-    - name: Update Elastic Beanstalk environment with new Docker image
+    - name: Create new Elastic Beanstalk application version (Docker)
+      run: |
+        aws elasticbeanstalk create-application-version \
+          --application-name $EB_APP_NAME \
+          --version-label $IMAGE_TAG \
+          --source-bundle S3Bucket=$ECR_BUCKET,S3Key=${{ secrets.ECR_URL }}:${{ github.sha }} \
+          --process \
+          --region $AWS_REGION
+      env:
+        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        AWS_REGION: ${{ secrets.AWS_REGION }}
+        EB_APP_NAME: ${{ secrets.EB_APP_NAME }}
+        IMAGE_TAG: ${{ github.sha }}
+        ECR_URL: ${{ secrets.ECR_URL }}
+        ECR_BUCKET: ${{ secrets.ECR_BUCKET }}
+
+    - name: Deploy to Elastic Beanstalk
       run: |
         aws elasticbeanstalk update-environment \
           --application-name $EB_APP_NAME \
           --environment-name $EB_ENV_NAME \
           --version-label $IMAGE_TAG \
-          --region $AWS_REGION \
-          --option-settings Namespace=aws:elasticbeanstalk:container:docker,OptionName=Image,Value=${{ secrets.ECR_URL }}:${{ github.sha }}
+          --region $AWS_REGION
       env:
         AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
         AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
