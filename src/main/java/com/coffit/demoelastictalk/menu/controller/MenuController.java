@@ -26,6 +26,6 @@ public class MenuController {
 
     @GetMapping("/check")
     public String checkVersion() {
-        return "😍verser 1.0.6😍";
+        return "😍🙌verser 1.0.6😍";
     }
 }
