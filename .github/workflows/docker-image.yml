@@ -44,8 +44,8 @@ jobs:
       id: build-image
       env:
         ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-        ECR_REPOSITORY: devdocker ##ECR 리포지토리 이름
-        IMAGE_TAG: devdocker  ##ECR에 올라갈 이미지의 태그
+        ECR_REPOSITORY: dockerdev ##ECR 리포지토리 이름
+        IMAGE_TAG: dockerdev  ##ECR에 올라갈 이미지의 태그
       run: |
         docker buildx build --platform=linux/amd64 -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
         docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
